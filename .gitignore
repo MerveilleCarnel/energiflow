@@ -1,0 +1,15 @@
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+
+# Données générées / régénérables
+analyse/data/
+analyse/output/
+.ipynb_checkpoints/
+
+# Docker
+*.log

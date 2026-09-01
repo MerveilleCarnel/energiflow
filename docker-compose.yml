@@ -1,0 +1,177 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: energiflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - energiflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U energiflow -d energiflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  collecte:
+    build: ./collecte
+    container_name: energiflow-collecte
+    env_file:
+      - ./collecte/.env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  collecte_meteo:
+    build: ./collecte
+    container_name: energiflow-collecte-meteo
+    command: ["python", "collect_meteo.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  collecte_prix:
+    build: ./collecte
+    container_name: energiflow-collecte-prix
+    command: ["python", "collect_prix.py"]
+    env_file:
+      - ./collecte/.env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  collecte_odre:
+    build: ./collecte
+    container_name: energiflow-collecte-odre
+    command: ["python", "collect_odre.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  collecte_scraping:
+    build: ./collecte
+    container_name: energiflow-collecte-scraping
+    command: ["python", "collect_scraping.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  build_silver:
+    build: ./collecte
+    container_name: energiflow-build-silver
+    command: ["python", "build_silver.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  build_gold:
+    build: ./collecte
+    container_name: energiflow-build-gold
+    command: ["python", "build_gold.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  analyse:
+    build: ./analyse
+    container_name: energiflow-analyse
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    volumes:
+      - ./analyse/output:/app/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: energiflow-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@energiflow.com
+      PGADMIN_DEFAULT_PASSWORD: energiflow
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - energiflow_pgadmin:/var/lib/pgadmin
+
+  airflow:
+    build: ./airflow
+    container_name: energiflow-airflow
+    restart: unless-stopped
+    command: standalone
+    env_file:
+      - ./collecte/.env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - energiflow_airflow_logs:/opt/airflow/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  energiflow_pgdata:
+  energiflow_pgadmin:
+  energiflow_airflow_logs:
