@@ -1,0 +1,44 @@
+name: CI - EnergiFlow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lint tools
+        run: pip install flake8
+
+      - name: Vérifier la syntaxe de tous les scripts Python
+        run: |
+          python -m py_compile collecte/*.py airflow/dags/*.py airflow/scripts/*.py analyse/*.py
+
+      - name: Lint (erreurs bloquantes uniquement : syntaxe, imports, variables non définies)
+        run: |
+          flake8 collecte/ airflow/dags/ airflow/scripts/ analyse/ --select=E9,F63,F7,F82 --show-source
+
+  build-images:
+    runs-on: ubuntu-latest
+    needs: lint-and-syntax
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image collecte
+        run: docker build -t energiflow-collecte:ci ./collecte
+
+      - name: Build image airflow
+        run: docker build -t energiflow-airflow:ci ./airflow
+
+      - name: Build image analyse
+        run: docker build -t energiflow-analyse:ci ./analyse
