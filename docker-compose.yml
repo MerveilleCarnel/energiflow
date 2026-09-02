@@ -90,6 +90,20 @@ services:
       postgres:
         condition: service_healthy
 
+  collecte_eco2mix:
+    build: ./collecte
+    container_name: energiflow-collecte-eco2mix
+    command: ["python", "collect_eco2mix.py"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: energiflow
+      POSTGRES_USER: energiflow
+      POSTGRES_PASSWORD: energiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   build_silver:
     build: ./collecte
     container_name: energiflow-build-silver

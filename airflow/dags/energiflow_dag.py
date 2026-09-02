@@ -1,5 +1,5 @@
 """
-DAG EnergiFlow — orchestre les 5 collectes (RTE, Open-Meteo, RTE Wholesale Market, ODRE, Web Scraping)
+DAG EnergiFlow — orchestre les 6 collectes (RTE, Open-Meteo, RTE Wholesale Market, ODRE, Web Scraping, éCO2mix)
 une fois par jour, puis construit les couches Silver et Gold à partir des données collectées.
 """
 from datetime import datetime, timedelta
@@ -15,12 +15,12 @@ default_args = {
 
 with DAG(
     dag_id="energiflow_collecte_quotidienne",
-    description="Collecte quotidienne des 5 sources EnergiFlow + Silver + Gold",
+    description="Collecte quotidienne des 6 sources EnergiFlow + Silver + Gold",
     default_args=default_args,
     schedule="0 6 * * *",  # tous les jours à 6h du matin
     start_date=datetime(2026, 7, 20),
     catchup=False,
-    tags=["energiflow", "bloc1"],
+    tags=["energiflow", "bloc1", "bloc4"],
 ) as dag:
 
     collecte_rte = BashOperator(
@@ -48,6 +48,11 @@ with DAG(
         bash_command="python /opt/airflow/scripts/collect_scraping.py",
     )
 
+    collecte_eco2mix = BashOperator(
+        task_id="collecte_mix_carbone_eco2mix",
+        bash_command="python /opt/airflow/scripts/collect_eco2mix.py",
+    )
+
     construction_silver = BashOperator(
         task_id="construction_couche_silver",
         bash_command="python /opt/airflow/scripts/build_silver.py",
@@ -58,6 +63,6 @@ with DAG(
         bash_command="python /opt/airflow/scripts/build_gold.py",
     )
 
-    # Les 5 collectes tournent en parallèle, puis Silver se construit une fois
+    # Les 6 collectes tournent en parallèle, puis Silver se construit une fois
     # qu'elles sont TOUTES terminées, puis Gold se construit à partir de Silver.
-    [collecte_rte, collecte_meteo, collecte_prix, collecte_odre, collecte_scraping] >> construction_silver >> construction_gold
+    [collecte_rte, collecte_meteo, collecte_prix, collecte_odre, collecte_scraping, collecte_eco2mix] >> construction_silver >> construction_gold

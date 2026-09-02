@@ -1,6 +1,6 @@
 """
 Construction de la couche Silver : vues PostgreSQL nettoyées à partir des
-tables brutes alimentées par les 5 collecteurs (Bloc 1).
+tables brutes alimentées par les 6 collecteurs (Bloc 1 + Bloc 4).
 Ne casse rien dans les tables sources : uniquement des CREATE OR REPLACE VIEW.
 """
 import os
@@ -69,6 +69,16 @@ CREATE OR REPLACE VIEW silver.dim_region AS
 SELECT DISTINCT region, code_insee_region
 FROM public.fact_consommation_regionale;
 
+-- Mix énergétique, intensité carbone et échanges aux frontières (déjà propre à la collecte)
+CREATE OR REPLACE VIEW silver.eco2mix AS
+SELECT
+    date_heure,
+    consommation AS consommation_eco2mix_mw,
+    nucleaire, eolien, solaire, hydraulique, gaz, charbon, fioul, bioenergies,
+    taux_co2,
+    ech_physiques
+FROM public.fact_eco2mix;
+
 -- Table d'analyse prête à l'emploi pour le Bloc 2 : consommation nationale,
 -- météo moyenne nationale et prix de marché, alignés sur la même date_heure.
 -- La météo est horaire (1 valeur/heure) alors que la consommation est au
@@ -84,6 +94,25 @@ SELECT
 FROM silver.consommation_nationale c
 LEFT JOIN silver.meteo_nationale m ON date_trunc('hour', c.date_heure) = m.date_heure
 LEFT JOIN silver.prix_marche p     ON c.date_heure = p.date_heure
+ORDER BY c.date_heure;
+
+-- Table d'analyse étendue pour le Bloc 4 : consommation, météo, prix ET carbone
+-- (dont les échanges aux frontières), alignés sur la même date_heure (les deux
+-- sources RTE partagent le même pas de 15 min).
+CREATE OR REPLACE VIEW silver.conso_meteo_prix_carbone AS
+SELECT
+    c.date_heure,
+    c.consommation_mw,
+    m.temperature_moyenne_nationale,
+    m.vent_moyen_national,
+    p.prix_eur_mwh,
+    e.taux_co2,
+    e.nucleaire, e.eolien, e.solaire, e.hydraulique, e.gaz, e.charbon, e.fioul, e.bioenergies,
+    e.ech_physiques
+FROM silver.consommation_nationale c
+LEFT JOIN silver.meteo_nationale m ON date_trunc('hour', c.date_heure) = m.date_heure
+LEFT JOIN silver.prix_marche p     ON c.date_heure = p.date_heure
+LEFT JOIN silver.eco2mix e         ON c.date_heure = e.date_heure
 ORDER BY c.date_heure;
 """
 
@@ -111,4 +140,6 @@ if __name__ == "__main__":
     print("  - silver.prix_marche")
     print("  - silver.actualites")
     print("  - silver.dim_region")
+    print("  - silver.eco2mix")
     print("  - silver.conso_meteo_prix  (table d'analyse combinée pour le Bloc 2)")
+    print("  - silver.conso_meteo_prix_carbone  (table d'analyse combinée pour le Bloc 4)")

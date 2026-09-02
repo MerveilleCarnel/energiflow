@@ -58,8 +58,25 @@ DROP MATERIALIZED VIEW IF EXISTS gold.correlations;
 CREATE MATERIALIZED VIEW gold.correlations AS
 SELECT
     ROUND(CORR(temperature_moyenne_nationale, consommation_mw)::numeric, 3) AS r_temperature_consommation,
-    ROUND(CORR(prix_eur_mwh, consommation_mw)::numeric, 3)                  AS r_prix_consommation
-FROM silver.conso_meteo_prix;
+    ROUND(CORR(prix_eur_mwh, consommation_mw)::numeric, 3)                  AS r_prix_consommation,
+    ROUND(CORR(taux_co2, consommation_mw)::numeric, 3)                      AS r_carbone_consommation,
+    ROUND(CORR(ech_physiques, taux_co2)::numeric, 3)                        AS r_export_carbone
+FROM silver.conso_meteo_prix_carbone;
+
+-- 5. Mix énergétique moyen par filière, sur la période disponible
+DROP MATERIALIZED VIEW IF EXISTS gold.mix_energetique_moyen;
+CREATE MATERIALIZED VIEW gold.mix_energetique_moyen AS
+SELECT
+    ROUND(AVG(nucleaire), 0)   AS nucleaire_moyen_mw,
+    ROUND(AVG(eolien), 0)      AS eolien_moyen_mw,
+    ROUND(AVG(solaire), 0)     AS solaire_moyen_mw,
+    ROUND(AVG(hydraulique), 0) AS hydraulique_moyen_mw,
+    ROUND(AVG(gaz), 0)         AS gaz_moyen_mw,
+    ROUND(AVG(charbon), 0)     AS charbon_moyen_mw,
+    ROUND(AVG(fioul), 0)       AS fioul_moyen_mw,
+    ROUND(AVG(bioenergies), 0) AS bioenergies_moyen_mw,
+    ROUND(AVG(taux_co2), 1)    AS taux_co2_moyen
+FROM silver.eco2mix;
 """
 
 
@@ -83,3 +100,4 @@ if __name__ == "__main__":
     print("  - gold.top_pics_nationaux")
     print("  - gold.consommation_regions_cles")
     print("  - gold.correlations")
+    print("  - gold.mix_energetique_moyen")
