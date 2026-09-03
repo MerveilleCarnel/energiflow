@@ -1,0 +1,4 @@
+pyspark==3.5.1
+pandas==2.2.2
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.31

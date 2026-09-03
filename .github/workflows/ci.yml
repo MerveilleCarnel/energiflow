@@ -22,11 +22,11 @@ jobs:
 
       - name: "Vérifier la syntaxe de tous les scripts Python"
         run: |
-          python -m py_compile collecte/*.py airflow/dags/*.py airflow/scripts/*.py analyse/*.py
+          python -m py_compile collecte/*.py airflow/dags/*.py airflow/scripts/*.py analyse/*.py spark/*.py
 
       - name: "Lint (erreurs bloquantes uniquement: syntaxe, imports, variables non définies)"
         run: |
-          flake8 collecte/ airflow/dags/ airflow/scripts/ analyse/ --select=E9,F63,F7,F82 --show-source
+          flake8 collecte/ airflow/dags/ airflow/scripts/ analyse/ spark/ --select=E9,F63,F7,F82 --show-source
 
   build-images:
     runs-on: ubuntu-latest
@@ -42,3 +42,6 @@ jobs:
 
       - name: Build image analyse
         run: docker build -t energiflow-analyse:ci ./analyse
+
+      - name: Build image spark
+        run: docker build -t energiflow-spark:ci ./spark
