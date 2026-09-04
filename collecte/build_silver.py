@@ -69,7 +69,9 @@ CREATE OR REPLACE VIEW silver.dim_region AS
 SELECT DISTINCT region, code_insee_region
 FROM public.fact_consommation_regionale;
 
--- Mix énergétique, intensité carbone et échanges aux frontières (déjà propre à la collecte)
+-- Mix énergétique, intensité carbone et échanges aux frontières :
+-- filtre qualité ajouté (Bloc 4) pour écarter les valeurs manquantes ou
+-- physiquement impossibles, au même titre que les autres sources
 CREATE OR REPLACE VIEW silver.eco2mix AS
 SELECT
     date_heure,
@@ -77,13 +79,14 @@ SELECT
     nucleaire, eolien, solaire, hydraulique, gaz, charbon, fioul, bioenergies,
     taux_co2,
     ech_physiques
-FROM public.fact_eco2mix;
+FROM public.fact_eco2mix
+WHERE taux_co2 IS NOT NULL
+  AND taux_co2 >= 0
+  AND consommation IS NOT NULL
+  AND consommation > 0;
 
--- Table d'analyse prête à l'emploi pour le Bloc 2 : consommation nationale,
--- météo moyenne nationale et prix de marché, alignés sur la même date_heure.
--- La météo est horaire (1 valeur/heure) alors que la consommation est au
--- quart d'heure (4 valeurs/heure) : on joint sur l'heure arrondie pour que
--- les 4 relevés d'une même heure partagent la même valeur météo.
+-- Table d'analyse Bloc 2 (consommation nationale + météo + prix, sans carbone)
+-- conservée telle quelle : déjà utilisée dans le document Bloc 2 déposé.
 CREATE OR REPLACE VIEW silver.conso_meteo_prix AS
 SELECT
     c.date_heure,
@@ -92,13 +95,13 @@ SELECT
     m.vent_moyen_national,
     p.prix_eur_mwh
 FROM silver.consommation_nationale c
-LEFT JOIN silver.meteo_nationale m ON date_trunc('hour', c.date_heure) = m.date_heure
+LEFT JOIN silver.meteo_nationale m ON c.date_heure = m.date_heure
 LEFT JOIN silver.prix_marche p     ON c.date_heure = p.date_heure
 ORDER BY c.date_heure;
 
--- Table d'analyse étendue pour le Bloc 4 : consommation, météo, prix ET carbone
--- (dont les échanges aux frontières), alignés sur la même date_heure (les deux
--- sources RTE partagent le même pas de 15 min).
+-- Base unifiée Bloc 4 : les 4 sources numériques (consommation, météo, prix,
+-- carbone) jointes sur la même date_heure. C'est la table de référence pour
+-- l'analyse carbone/consommation et pour les corrélations étendues.
 CREATE OR REPLACE VIEW silver.conso_meteo_prix_carbone AS
 SELECT
     c.date_heure,
@@ -140,6 +143,6 @@ if __name__ == "__main__":
     print("  - silver.prix_marche")
     print("  - silver.actualites")
     print("  - silver.dim_region")
-    print("  - silver.eco2mix")
-    print("  - silver.conso_meteo_prix  (table d'analyse combinée pour le Bloc 2)")
-    print("  - silver.conso_meteo_prix_carbone  (table d'analyse combinée pour le Bloc 4)")
+    print("  - silver.eco2mix  (filtre qualité ajouté)")
+    print("  - silver.conso_meteo_prix  (table d'analyse Bloc 2)")
+    print("  - silver.conso_meteo_prix_carbone  (base unifiée Bloc 4)")
