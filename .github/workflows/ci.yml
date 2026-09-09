@@ -45,7 +45,6 @@ jobs:
 
       - name: Build image spark
         run: docker build -t energiflow-spark:ci ./spark
-        
   deploy:
     runs-on: ubuntu-latest
     needs: build-images
@@ -54,6 +53,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Calculer le nom du propriétaire en minuscules
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Connexion à GitHub Container Registry
         uses: docker/login-action@v3
@@ -64,20 +66,20 @@ jobs:
 
       - name: Build et push image collecte
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/energiflow-collecte:latest ./collecte
-          docker push ghcr.io/${{ github.repository_owner }}/energiflow-collecte:latest
+          docker build -t ghcr.io/${{ env.OWNER_LC }}/energiflow-collecte:latest ./collecte
+          docker push ghcr.io/${{ env.OWNER_LC }}/energiflow-collecte:latest
 
       - name: Build et push image airflow
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/energiflow-airflow:latest ./airflow
-          docker push ghcr.io/${{ github.repository_owner }}/energiflow-airflow:latest
+          docker build -t ghcr.io/${{ env.OWNER_LC }}/energiflow-airflow:latest ./airflow
+          docker push ghcr.io/${{ env.OWNER_LC }}/energiflow-airflow:latest
 
       - name: Build et push image analyse
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/energiflow-analyse:latest ./analyse
-          docker push ghcr.io/${{ github.repository_owner }}/energiflow-analyse:latest
+          docker build -t ghcr.io/${{ env.OWNER_LC }}/energiflow-analyse:latest ./analyse
+          docker push ghcr.io/${{ env.OWNER_LC }}/energiflow-analyse:latest
 
       - name: Build et push image spark
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/energiflow-spark:latest ./spark
-          docker push ghcr.io/${{ github.repository_owner }}/energiflow-spark:latest      
+          docker build -t ghcr.io/${{ env.OWNER_LC }}/energiflow-spark:latest ./spark
+          docker push ghcr.io/${{ env.OWNER_LC }}/energiflow-spark:latest        
